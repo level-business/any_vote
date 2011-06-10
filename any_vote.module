@@ -1,0 +1,387 @@
+<?php 
+/**
+ * @file any_vote.module
+ * Drupal module file to allow for voting on any content. 
+ */
+
+/**
+ * any_vote_menu
+ * Implementation of hook_menu().
+ */
+function any_vote_menu() {
+  // vote/vote_id/vote_value
+  $items['any_vote/nojs/vote/%/%/%'] = array(
+    'title' => 'Cast vote with no js',
+    'page callback' => 'any_vote_cast_vote',
+    'access arguments' => array('vote on any_vote blocks'),
+    'type' => MENU_CALLBACK,
+    'page arguments' => array(3,4,5,FALSE),
+  );
+  
+  $items['any_vote/ajax/vote/%/%/%'] = array(
+    'title' => 'Cast vote with ajax', 
+    'page callback' => 'any_vote_cast_vote',
+    'access arguments' => array('vote on any_vote blocks'),
+    'type' => MENU_CALLBACK,
+    'page arguments' => array(3,4,5,TRUE),  
+  );
+
+  return $items;
+}
+
+function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
+
+  $any_vote_blocks = any_vote_get_blocks();
+  if (isset($any_vote_blocks[$vote_id])) {
+    $vote_block_info = $any_vote_blocks[$vote_id];
+  }
+  else {
+    return FALSE;
+    // TODO better error handling.
+  }
+  //TODO: validity and error checking.
+  $vote = array();
+  $vote['content_type'] = 'any_vote';
+  $vote['value_type'] = $vote_block_info['score type'];
+  $vote['content_id'] = $content_id;
+  $vote['tag'] = $vote_id;
+  $vote['value'] = $vote_value;
+  $votes[] = $vote;
+  $results = votingapi_set_votes($votes);
+
+  if ($ajax) {
+    //TODO: Return some ajax
+  }
+  else {
+    drupal_goto($_SERVER['HTTP_REFERER']);
+  }
+}
+
+/**
+ * inform the any vote module about voting blocks
+ *  
+ * @return
+ * A any_vote definition structure array.  For each element of the
+ * array, the key is a block name and the value is a any_vote definition
+ * 
+ * The following keys should be used
+ * - "title" : the title for the block when displayed
+ * - "info"  : text information about the block for the admin screen
+ * - "score type" : text 'points', 'sum' or 'option'. (standard votinapi types)
+ * - "options" : array (an array of options as text, to use if type is options)
+ * - "empty text" : text to use if no votes have been cast (may use tokens)
+ * - "summary text" : text to display if votes have been cast (may use tokens)
+ * - "summary callback" : used instead of summary text, callback to return 
+ *    display text
+ * - "question" : question to ask for vote (may use tokens)
+ * - "id callback" : callback to determin the identfier to have votes cast on 
+ *    (other wise votes will be global, must be numeric)
+ * 
+ * To use custom tokens in your text substitutions you can provide the 
+ * following 
+ * 
+ * - "token object type" : the type of object to use for tokens
+ * - "token object callback" : a callback to the object to provide tokens
+ * 
+ */
+function hook_any_vote() {
+  $items['recommendation'] = array(
+    'title' => 'Recommendation',
+    'info' => 'Allow users to reccommend something',
+    'score type' => 'boolean',
+    'empty text' => 'Be the first to recommend [company_name]',
+    'summary text' => '[yes_count] of [no_count] people would reccomend [company_name]',
+    'question' => 'Would you reccomed this.'
+  );
+  return $items;  
+}
+
+/**
+ * any_vote_get_blocks() 
+ * 
+ * Get info on any_vote blocks. Array returned is for any vote internal use and
+ * will not work with the block system. Blocks are handled by any_vote_block()
+ * Code very similar to drupal_get_schema;
+ */
+function any_vote_get_blocks() {
+  static $voting_blocks = array();
+  if (empty($voting_blocks)) {
+      // Invoke hook_schema for all modules.
+      foreach (module_implements('any_vote') as $module) {
+        $current = (array) module_invoke($module, 'any_vote');
+        $voting_blocks = array_merge($voting_blocks, $current);
+      }
+      drupal_alter('any_vote', $voting_blocks);
+  }
+  return $voting_blocks;
+}
+
+/**
+ * any_vote_perm()
+ * Implements hook_perm().
+ */
+function any_vote_perm() {
+  return array('vote on any_vote blocks');
+}
+
+// TODO any vote menu
+
+/**
+ * any_vote_block()
+ * Implementation of hook_block().
+ */
+function any_vote_block($op = 'list', $delta = 0, $edit = array()) {
+ switch($op) {
+   case 'list':
+     $blocks = array();
+     /* Get the any_vote blocks */
+    $feedback_options = any_vote_get_blocks();
+    foreach($feedback_options as $option_key => $option) {
+      $blocks[$option_key] = array(
+        'info' => $option['info'],
+      );
+    }
+    return $blocks; 
+   break;
+   case 'view':
+     $block = any_vote_render_block($delta);
+		return $block;
+   break;
+ }
+}
+
+/**
+ * any_vote_render_block
+ * Render a voting block
+ * @param $key the block to be rendered
+ * @return array the block.
+ */
+function any_vote_render_block($key) {
+  $any_vote_blocks = any_vote_get_blocks();
+  if (isset($any_vote_blocks[$key])) {
+    $vote_block_info = $any_vote_blocks[$key];
+  }
+  else {
+    // The block is not defined so return an empty array
+    return $array();
+  }
+      
+        
+  $return_block['title'] = $vote_block_info['title'];
+  $return_block['content'] = '';
+  
+  $vote = array();
+
+  $criteria['content_type'] = 'any_vote';
+  $id_callback = $vote_block_info['id callback'];
+  if(function_exists($id_callback)) {
+    $criteria['content_id'] = $id_callback();
+  }
+  $criteria['value_type'] = $vote_block_info['score type'];
+  $criteria['tag'] = $key;
+
+  $votes_check = votingapi_select_results($criteria);  
+  
+  if (sizeof($votes_check) == 0) {
+   $has_votes = FALSE;
+  }
+  else {
+   $has_votes = TRUE;
+  }
+  
+  // Check to see if the user has voted
+  $user_has_voted = FALSE;
+  if ($has_votes) {
+    // TODO, think we can use votes_check here now we are using select results. 
+    $criteria += votingapi_current_user_identifier();
+    $user_votes_check = votingapi_select_votes($criteria);  
+    if (sizeof($user_votes_check) > 0) {
+      $user_has_voted = TRUE;
+    }
+  }
+  
+  $unused_options = $vote_block_info['options'];
+  // TODO Check to see the total votes
+  switch($vote_block_info['score type'])  {
+    case 'points':
+      foreach($votes_check as $cache_item) {
+        switch ($cache_item['function']) {
+          case 'count':
+             $tokens['total_count'] = $cache_item['value'];
+          break;  
+          case 'average':
+            $votes = 'average :' . $cache_item['value'];
+            $tokens['vote_average'] = $cache_item['value'];
+          break;
+          case 'sum':
+            $tokens['vote_sum'] = $cache_item['value'];
+          break;
+        } 
+        
+      }
+    break;  
+    case 'option':
+  $votes = '<ul>';
+  foreach($votes_check as $cache_item) {
+    // TODO: switch bassed on votes_type
+    $attributes = array();    
+    $total_votes += $cache_item['value'];
+    // Get the options number to work out the arry type
+    preg_match('/-([0-9]+)/',$cache_item['function'],$matches);
+    // remove used option
+    
+    
+    if (sizeof($matches) > 0) {
+       $options_key = (int) $matches[1];
+       $unused_options[$options_key] = FALSE;
+        if ($user_has_voted) {
+          if ($user_votes_check[0]['value'] == $option_key) {
+            $attributes['class'] = 'users_vote';
+          }
+        }
+       // TODO: check valid
+       $options_raw = $vote_block_info['options'][$options_key];
+       $options_safe = str_replace(' ','_',$options_raw);
+       $tokens[$options_safe . '_count'] = $cache_item['value'];
+       $votes .= '<li ' . drupal_attributes($attributes) . '>' . $options_raw . ':' . $cache_item['value'] . '</li>';
+    }
+    // setup  unused options 
+  foreach ($unused_options as $unused_option) {
+    if($unused_option) {
+       $options_safe = str_replace(' ','_',$unused_option);
+       $tokens[$options_safe . '_count'] = 0;
+       $votes .= '<li ' . drupal_attributes($attributes) . '>' . $unused_option . ':0</li>';
+     }
+    
+  }
+  $tokens['total_count'] = $total_votes;
+  $votes .= '</ul>';
+  break;
+  }
+}
+  
+
+
+  // Setup token attributes
+
+  $token_type['any_vote'] = $tokens;
+  
+  if (isset($vote_block_info['token object type'])) {
+    $token_object_callback = $vote_block_info['token object callback'];
+    $token_type[$vote_block_info['token object type']] = $token_object_callback();
+  }
+
+  if($has_votes) {
+    $return_block['content'] = token_replace_multiple($vote_block_info['summary text'], $token_type);
+  }
+  else {
+    $return_block['content'] = token_replace_multiple($vote_block_info['empty text'], $token_type);
+  }
+  $return_block['votes'] =  $votes_check; // Array for score or average?
+  $return_block['text_score'] = $votes;
+
+  $return_block['question'] = token_replace_multiple($vote_block_info['question'], $token_type);
+  // Generate links for widget.
+  switch($vote_block_info['score type']) {
+    case 'points':
+      $values = array(0,25,50,75,100);
+      // TODO make this configurable?
+      $links = array();
+      foreach ($values as $option) {
+        $link = array();
+        $link[title] = '*';
+        if ($user_has_voted) {
+          if ($user_votes_check[0]['value'] >= $option) {
+            $link['attributes']['class'] = 'user_vote_score';
+          }
+        }
+        else {
+          $link['href'] = 'any_vote/nojs/vote/' . $key . '/' . $criteria['content_id']. '/' . $option;
+        }
+        $link['rel'] = 'nofollow';
+        $links[] = $link;
+      }
+      $widget = theme(array('any_vote_points_widget','links'),$links,array('class' => 'any_vote_points_widget list'));
+    break;
+    case 'sum':
+      $widget = 'sum widget';
+    break;
+    case 'option':
+      $links = array();
+      foreach($vote_block_info['options'] as $option_key => $option) {
+        $link =  array(
+          'title' => $option,
+        );
+        if ($user_has_voted) {
+          if ($user_votes_check[0]['value'] == $option_key) {
+            $link['attributes']['class'] = 'user_vote';
+          }
+        }
+        else {
+          $link['href'] = 'any_vote/nojs/vote/' . $key . '/' . $criteria['content_id']. '/' . $option_key;
+          $link['rel'] = 'nofollow';
+        }
+        $links[] = $link;
+      }
+      
+      $widget = theme(array('any_vote_options_widget','links'),$links,array('class' => 'any_vote_option_widget list'));
+    break;
+    default:
+      $widget = 'undefined widget';
+    break;
+  }
+  
+  $return_block['widget'] = $widget;
+  $return_block['type'] = $vote_block_info['score type'];
+
+  
+  // Add classes to the block to aid styling
+  $extra_classes = "";
+  if($has_votes) {
+    $extra_classes = 'block_has_votes';
+  }
+  else {
+    $extra_classes = 'block_has_no_votes';
+  }  
+
+  if($user_has_voted) {
+    $extra_classes .= ' user_voted';
+  }
+  $return_block['extra_classes'] = $extra_classes;
+
+  
+  return $return_block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function any_vote_theme($existing, $type, $theme, $path) {
+  $items = array();
+  // Register block hook so that block_any_vote is registered. 
+  $items['block'] = array(
+  );
+  return $items;  
+}
+
+/**
+ * Implementation of preprocess_block(), to add suggestions to the template path
+ *  so that widgets can be customized in the template file.
+ * @param array $variables
+ */
+function any_vote_preprocess_block(&$variables) {
+ if ($variables['block']->module == 'any_vote' && isset($variables['block']->type)) {
+  $variables['template_files'][] = 'block-any_vote-' . $variables['block']->type;
+ }
+}
+
+/**
+ * Implementation of hook_token_values().
+ */
+function any_vote_token_values($type, $object = NULL, $options = array()) {
+  if($type == 'any_vote' && isset($object)) {
+  return $object;
+  }
+}
+
+?>

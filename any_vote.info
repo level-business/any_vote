@@ -1,0 +1,6 @@
+core = "6.x"
+dependencies[] = "votingapi"
+dependencies[] = "token"
+
+name = "Any Vote"
+description = "Provide a framework for voting widgets on any page"
