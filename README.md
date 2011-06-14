@@ -54,6 +54,9 @@ This is used by the token module, this allows you to use tokens for a particular
 ### Token object callback
 If you are using token object type you should use this to determine the object that is passed to the token generations functions along with your type
 
+### link class callback
+ A callback to assign classes to the  vote links in the callbacks. 
+
 ## In built tokens
 
 These depend on the type of vote being cast but are roughly:
