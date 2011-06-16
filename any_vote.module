@@ -50,7 +50,24 @@ function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
   $results = votingapi_set_votes($votes);
 
   if ($ajax) {
+    ctools_include('ajax');
     //TODO: Return some ajax
+   $output = array();
+
+    $save_get = $_GET['q']; 
+    $referer = ltrim(parse_url($_SERVER['HTTP_REFERER'],PHP_URL_PATH),'/');
+    $_GET['q'] = drupal_get_normal_path($referer, '/');   
+    $block = module_invoke('any_vote', 'block', 'view', $vote_id);
+    
+    // must be converted to an object
+    $block = !empty($block) ? (object)$block : new stdclass;
+    //TODO fix issue with regsitration breaking the votes. 
+    $block->module = 'any_vote';
+    $block->delta = $vote_id;
+    $block_markup = theme('block',$block);
+    $_GET['q'] = $save_get;
+    $output[] = ctools_ajax_command_html('#block-any_vote-' . $vote_id, $block_markup);
+    ctools_ajax_render($output); 
   }
   else {
     drupal_goto($_SERVER['HTTP_REFERER']);
@@ -178,6 +195,10 @@ function any_vote_render_block($key) {
     $criteria['content_id'] = $id_callback();
     // TODO: if content id is false or non numeric do different things.
   }
+  else {
+    $criteria['content_id'] = 10101;
+    
+  }
   // TODO: if no id register 1
   $criteria['value_type'] = $vote_block_info['score type'];
   $criteria['tag'] = $key;
@@ -293,7 +314,7 @@ function any_vote_render_block($key) {
       $links = array();
       foreach ($values as $option) {
         $link = array();
-        $link['attributes']['class'] = '';
+        $link['attributes']['class'] = 'ctools-use-ajax';
         $link['attributes']['rel'] = 'nofollow';
 
         if(function_exists($class_callback)) {
@@ -323,7 +344,7 @@ function any_vote_render_block($key) {
         $link =  array(
           'title' => $option,
         );
-        $link['attributes']['class'] = '';
+        $link['attributes']['class'] = 'ctools-use-ajax';
         $link['attributes']['rel'] = 'nofollow';
         if(function_exists($class_callback)) {
           $link['attributes']['class'] .= $class_callback();

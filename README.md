@@ -47,12 +47,14 @@ The question to pose for voting. For example 'do you like this item?'
 This is very important. It is used as a parameter less function to return an id which can identify what is being voted on.
 When called this will return a numeric id for the item you wish to vote on.
 (parameters should be implemented at some stage)
+At the moment if you use ajax this may cause complications, the path is passed through on ajax. but not the rest of the page context. 
 
 ### Token Object Type
 This is used by the token module, this allows you to use tokens for a particular type of object as well as the vote specific tokens in your voting text
 
 ### Token object callback
-If you are using token object type you should use this to determine the object that is passed to the token generations functions along with your type
+If you are using token object type you should use this to determine the object that is passed to the token generations functions along with your type. 
+At the moment if you use ajax this may cause complications, the path is passed through on ajax. but not the rest of the page context. 
 
 ### link class callback
  A callback to assign classes to the  vote links in the callbacks. 
@@ -103,6 +105,7 @@ If a user has voted classes are applied to the items to indicate the users vote.
 * The structure returned for the votes is not very clear and should be reformatted to be as simple as possible.
 * Code tidy up and conform to coding standards
 * Implement the sum type
-* Implement CTools Ajax framework
 * Allow arguments to the callbacks
 * Allow a callback for the summary text
+* Return path configurable
+* Add an option not to use ajax.
