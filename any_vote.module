@@ -237,12 +237,13 @@ function any_vote_render_block($key) {
           case 'average':
             $votes = 'average :' . $cache_item['value'];
             $tokens['vote_average'] = $cache_item['value'];
+            $vote_values['vote_average'] = $cache_item['value'];
             break;
           case 'sum':
             $tokens['vote_sum'] = $cache_item['value'];
+            $total_votes = $cache_item['value'];         
             break;
         }
-
       }
       break;
     case 'option':
@@ -266,6 +267,7 @@ function any_vote_render_block($key) {
           // TODO: check valid
           $options_raw = $vote_block_info['options'][$options_key];
           $options_safe = str_replace(' ','_',$options_raw);
+          $vote_values[$options_raw] = $cache_item['value'];
           $tokens[$options_safe . '_count'] = $cache_item['value'];
           $votes .= '<li ' . drupal_attributes($attributes) . '>' . $options_raw . ':' . $cache_item['value'] . '</li>';
         }
@@ -300,7 +302,8 @@ function any_vote_render_block($key) {
   else {
     $return_block['content'] = token_replace_multiple($vote_block_info['empty text'], $token_type);
   }
-  
+  $return_block['total_votes'] = $total_votes;
+  $return_block['votes'] = $vote_values;
   $return_block['votes_raw'] =  $votes_check; // Array for score or average?
 
   
