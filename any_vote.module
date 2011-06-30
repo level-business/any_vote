@@ -170,7 +170,7 @@ function any_vote_block($op = 'list', $delta = 0, $edit = array()) {
 /**
  * any_vote_render_block
  * Render a voting block
- * @param $key the block to be rendered
+ * @param delta $key the block to be rendered
  * @return array the block.
  */
 function any_vote_render_block($key) {
@@ -300,7 +300,9 @@ function any_vote_render_block($key) {
   else {
     $return_block['content'] = token_replace_multiple($vote_block_info['empty text'], $token_type);
   }
+  
   $return_block['votes'] =  $votes_check; // Array for score or average?
+  
   $return_block['text_score'] = $votes;
 
   $return_block['question'] = token_replace_multiple($vote_block_info['question'], $token_type);
@@ -387,7 +389,7 @@ function any_vote_render_block($key) {
   }
   $return_block['extra_classes'] = $extra_classes;
 
-
+var_dump($return_block);
   return $return_block;
 }
 
@@ -397,8 +399,7 @@ function any_vote_render_block($key) {
 function any_vote_theme($existing, $type, $theme, $path) {
   $items = array();
   // Register block hook so that block_any_vote is registered.
-  $items['block'] = array(
-  );
+  $items['block'] = $existing['block'];
   return $items;
 }
 
