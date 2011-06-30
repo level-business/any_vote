@@ -276,6 +276,7 @@ function any_vote_render_block($key) {
       foreach ($unused_options as $unused_option) {
         if($unused_option) {
           $options_safe = str_replace(' ','_',$unused_option);
+          $vote_values[$unused_option] = 0;
           $tokens[$options_safe . '_count'] = 0;
           $votes .= '<li ' . drupal_attributes($attributes) . '>' . $unused_option . ':0</li>';
         }
