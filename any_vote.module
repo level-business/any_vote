@@ -104,11 +104,11 @@ function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
 function hook_any_vote() {
   $items['recommendation'] = array(
     'title' => 'Recommendation',
-    'info' => 'Allow users to reccommend something',
+    'info' => 'Allow users to recommend something',
     'score type' => 'boolean',
     'empty text' => 'Be the first to recommend [company_name]',
-    'summary text' => '[yes_count] of [no_count] people would reccomend [company_name]',
-    'question' => 'Would you reccomed this.'
+    'summary text' => '[yes_count] of [no_count] people would recommend [company_name]',
+    'question' => 'Would you recommend this.'
     );
     return $items;
 }
