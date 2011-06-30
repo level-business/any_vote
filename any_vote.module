@@ -224,6 +224,8 @@ function any_vote_render_block($key) {
   }
 
   $unused_options = $vote_block_info['options'];
+  $total_votes = 0;
+  $vote_values = array();
   // TODO Check to see the total votes
   switch($vote_block_info['score type'])  {
     case 'points':
@@ -245,14 +247,13 @@ function any_vote_render_block($key) {
       break;
     case 'option':
       $votes = '<ul>';
-      foreach($votes_check as $cache_item) {
+      foreach ($votes_check as $cache_item) {
         // TODO: switch bassed on votes_type
         $attributes = array();
         $total_votes += $cache_item['value'];
         // Get the options number to work out the arry type
         preg_match('/-([0-9]+)/',$cache_item['function'],$matches);
         // remove used option
-
 
         if (sizeof($matches) > 0) {
           $options_key = (int) $matches[1];
@@ -268,19 +269,18 @@ function any_vote_render_block($key) {
           $tokens[$options_safe . '_count'] = $cache_item['value'];
           $votes .= '<li ' . drupal_attributes($attributes) . '>' . $options_raw . ':' . $cache_item['value'] . '</li>';
         }
-        // setup  unused options
-        foreach ($unused_options as $unused_option) {
-          if($unused_option) {
-            $options_safe = str_replace(' ','_',$unused_option);
-            $tokens[$options_safe . '_count'] = 0;
-            $votes .= '<li ' . drupal_attributes($attributes) . '>' . $unused_option . ':0</li>';
-          }
-
-        }
-        $tokens['total_count'] = $total_votes;
-        $votes .= '</ul>';
-        break;
       }
+      // setup  unused options
+      foreach ($unused_options as $unused_option) {
+        if($unused_option) {
+          $options_safe = str_replace(' ','_',$unused_option);
+          $tokens[$options_safe . '_count'] = 0;
+          $votes .= '<li ' . drupal_attributes($attributes) . '>' . $unused_option . ':0</li>';
+        }
+      }
+      $tokens['total_count'] = $total_votes;
+      $votes .= '</ul>';
+      break;
   }
 
 
@@ -301,7 +301,8 @@ function any_vote_render_block($key) {
     $return_block['content'] = token_replace_multiple($vote_block_info['empty text'], $token_type);
   }
   
-  $return_block['votes'] =  $votes_check; // Array for score or average?
+  $return_block['votes_raw'] =  $votes_check; // Array for score or average?
+
   
   $return_block['text_score'] = $votes;
 
@@ -389,7 +390,6 @@ function any_vote_render_block($key) {
   }
   $return_block['extra_classes'] = $extra_classes;
 
-var_dump($return_block);
   return $return_block;
 }
 
