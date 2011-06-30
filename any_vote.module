@@ -180,7 +180,7 @@ function any_vote_render_block($key) {
   }
   else {
     // The block is not defined so return an empty array
-    return $array();
+    return  array();
   }
 
 
