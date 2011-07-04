@@ -48,14 +48,23 @@ function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
   $vote['value'] = $vote_value;
   $votes[] = $vote;
   $results = votingapi_set_votes($votes);
+  
+  // Clear the cache
+  $url = parse_url($_SERVER['HTTP_REFERER']);
+  if($url['path']) {
+    cache_clear_all($_SERVER['HTTP_REFERER'], 'cache_page');
+  }
 
   if ($ajax) {
     ctools_include('ajax');
-   $output = array();
-
+    $output = array();
     $save_get = $_GET['q']; 
     $referer = ltrim(parse_url($_SERVER['HTTP_REFERER'],PHP_URL_PATH),'/');
-    $_GET['q'] = drupal_get_normal_path($referer, '/');   
+    $_GET['q'] = drupal_get_normal_path($referer, '/');
+    // Store the old path in a global so the block render has access to it
+    global $any_vote_real_path;
+    $any_vote_real_path = $save_get;
+    
     $block = module_invoke('any_vote', 'block', 'view', $vote_id);
     
     // must be converted to an object
@@ -216,10 +225,18 @@ function any_vote_render_block($key) {
   $user_has_voted = FALSE;
   if ($has_votes) {
     // TODO, think we can use votes_check here now we are using select results.
-    $criteria += votingapi_current_user_identifier();
-    $user_votes_check = votingapi_select_votes($criteria);
-    if (sizeof($user_votes_check) > 0) {
-      $user_has_voted = TRUE;
+    
+    // If the page is being loaded via ajax we can display the blocks for anon users
+    // Otherwise just show generic block 
+    
+    global $user;
+    global $any_vote_real_path;
+    if ($user->uid || strpos($any_vote_real_path,'ajax')) {
+      $criteria += votingapi_current_user_identifier();
+      $user_votes_check = votingapi_select_votes($criteria);
+      if (sizeof($user_votes_check) > 0) {
+        $user_has_voted = TRUE;
+      }      
     }
   }
 
