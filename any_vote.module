@@ -346,7 +346,6 @@ function any_vote_render_block($key) {
         }
         $link['attributes']['rel'] = 'nofollow';
 
-
         $link[title] = '*';
         if ($user_has_voted) {
           if ($user_votes_check[0]['value'] >= $option) {
@@ -356,6 +355,13 @@ function any_vote_render_block($key) {
         else {
           $link['href'] = 'any_vote/nojs/vote/' . $key . '/' . $criteria['content_id']. '/' . $option;
         }
+        
+        // add classes for values upto current points average
+        if (isset($return_block['votes']['vote_average']) 
+          && $option <= $return_block['votes']['vote_average'] ) { 
+           $link['attributes']['class'] =  ' average-active';
+        }
+        
         $link['rel'] = 'nofollow';
         $links[] = $link;
       }
@@ -416,7 +422,12 @@ function any_vote_render_block($key) {
     $extra_classes .= ' user_voted';
   }
   $return_block['extra_classes'] = $extra_classes;
-
+  
+  // Set js variable for advanced theming of vote blocks.
+  $js_block = $return_block;
+  unset($js_block['votes_raw']);  // we don't need to bloat the js with all the raw votes.
+  drupal_add_js(array('any_vote' => array($key => $js_block)), 'setting');
+  
   return $return_block;
 }
 
