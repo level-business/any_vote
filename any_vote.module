@@ -249,11 +249,11 @@ function any_vote_render_block($key) {
       foreach($votes_check as $cache_item) {
         switch ($cache_item['function']) {
           case 'count':
-            $tokens['total_count'] = $cache_item['value'];
+            $tokens['total_count'] = '<span itemprop="ratingCount">' . $cache_item['value'] . '</span>';
             break;
           case 'average':
             $votes = 'average :' . $cache_item['value'];
-            $tokens['vote_average'] = $cache_item['value'];
+            $tokens['vote_average'] = '<span itemprop="ratingValue">' . $cache_item['value'] . '</span>';
             $vote_values['vote_average'] = $cache_item['value'];
             break;
           case 'sum':
