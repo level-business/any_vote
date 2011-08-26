@@ -10,22 +10,13 @@
  */
 function any_vote_menu() {
   // vote/vote_id/vote_value
-  $items['any_vote/nojs/vote/%/%/%'] = array(
-    'title' => 'Cast vote with no js',
+  $items['any_vote/%ctools_js/vote/%/%/%'] = array(
+    'title' => 'Cast vote',
     'page callback' => 'any_vote_cast_vote',
     'access arguments' => array('vote on any_vote blocks'),
     'type' => MENU_CALLBACK,
-    'page arguments' => array(3,4,5,FALSE),
+    'page arguments' => array(3,4,5,1),
   );
-
-  $items['any_vote/ajax/vote/%/%/%'] = array(
-    'title' => 'Cast vote with ajax', 
-    'page callback' => 'any_vote_cast_vote',
-    'access arguments' => array('vote on any_vote blocks'),
-    'type' => MENU_CALLBACK,
-    'page arguments' => array(3,4,5,TRUE),  
-  );
-
   return $items;
 }
 
@@ -48,7 +39,7 @@ function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
   $vote['value'] = $vote_value;
   $votes[] = $vote;
   $results = votingapi_set_votes($votes);
-  
+
   // Clear the cache
   $url = parse_url($_SERVER['HTTP_REFERER']);
   if($url['path']) {
@@ -58,24 +49,24 @@ function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
   if ($ajax) {
     ctools_include('ajax');
     $output = array();
-    $save_get = $_GET['q']; 
+    $save_get = $_GET['q'];
     $referer = ltrim(parse_url($_SERVER['HTTP_REFERER'],PHP_URL_PATH),'/');
     $_GET['q'] = drupal_get_normal_path($referer, '/');
     // Store the old path in a global so the block render has access to it
     global $any_vote_real_path;
     $any_vote_real_path = $save_get;
-    
+
     $block = module_invoke('any_vote', 'block', 'view', $vote_id);
-    
+
     // must be converted to an object
     $block = !empty($block) ? (object)$block : new stdclass;
-    //TODO fix issue with regsitration breaking the votes. 
+    //TODO fix issue with regsitration breaking the votes.
     $block->module = 'any_vote';
     $block->delta = $vote_id;
     $block_markup = theme('block',$block);
     $_GET['q'] = $save_get;
     $output[] = ctools_ajax_command_replace('#block-any_vote-' . $vote_id, $block_markup);
-    ctools_ajax_render($output); 
+    ctools_ajax_render($output);
   }
   else {
     drupal_goto($_SERVER['HTTP_REFERER']);
@@ -101,6 +92,8 @@ function any_vote_cast_vote($vote_id, $content_id, $vote_value, $ajax = FALSE) {
  * - "question" : question to ask for vote (may use tokens)
  * - "id callback" : callback to determin the identfier to have votes cast on
  *    (other wise votes will be global, must be numeric)
+ * - "no access callback" : Callback to display text in place of widget if user
+ *   doesn't have access to vote.
  *
  * To use custom tokens in your text substitutions you can provide the
  * following
@@ -206,7 +199,7 @@ function any_vote_render_block($key) {
   }
   else {
     $criteria['content_id'] = 10101;
-    
+
   }
   // TODO: if no id register 1
   $criteria['value_type'] = $vote_block_info['score type'];
@@ -225,10 +218,10 @@ function any_vote_render_block($key) {
   $user_has_voted = FALSE;
   if ($has_votes) {
     // TODO, think we can use votes_check here now we are using select results.
-    
+
     // If the page is being loaded via ajax we can display the blocks for anon users
-    // Otherwise just show generic block 
-    
+    // Otherwise just show generic block
+
     global $user;
     global $any_vote_real_path;
     if ($user->uid || strpos($any_vote_real_path,'ajax')) {
@@ -236,7 +229,7 @@ function any_vote_render_block($key) {
       $user_votes_check = votingapi_select_votes($criteria);
       if (sizeof($user_votes_check) > 0) {
         $user_has_voted = TRUE;
-      }      
+      }
     }
   }
 
@@ -258,7 +251,7 @@ function any_vote_render_block($key) {
             break;
           case 'sum':
             $tokens['vote_sum'] = $cache_item['value'];
-            $total_votes = $cache_item['value'];         
+            $total_votes = $cache_item['value'];
             break;
         }
       }
@@ -324,13 +317,24 @@ function any_vote_render_block($key) {
   $return_block['votes'] = $vote_values;
   $return_block['votes_raw'] =  $votes_check; // Array for score or average?
 
-  
+
   $return_block['text_score'] = $votes;
 
   $return_block['question'] = token_replace_multiple($vote_block_info['question'], $token_type);
   $class_callback = $vote_block_info['link class callback'];
 
+  // Check user access and don't display links if they can't vote.
+  if (! user_access('vote on any_vote blocks')) {
+    // if user has no access to votes then set voted flag to true, so that
+    // widget will not allow voting.
+    // Widget should display in disabled state,
+    $user_has_voted = TRUE;
+  }
   // Generate links for widget.
+  // TODO: in D7 it is possible to create renderable array for altering but in
+  // D6 theme links is a function so it isn't possible to pass arguments using
+  // drupal_render.
+   
   switch($vote_block_info['score type']) {
     case 'points':
       $values = array(0,25,50,75,100);
@@ -375,7 +379,7 @@ function any_vote_render_block($key) {
       foreach($vote_block_info['options'] as $option_key => $option) {
 
         $link =  array(
-          'title' => $option,
+            'title' => $option,
         );
         if(function_exists($class_callback)) {
           $link['attributes']['class'] = $class_callback(' ctools-use-ajax');
@@ -384,7 +388,7 @@ function any_vote_render_block($key) {
           $link['attributes']['class'] =  'ctools-use-ajax';
         }
         $link['attributes']['rel'] = 'nofollow';
- 
+         
 
         if ($user_has_voted) {
           if ($user_votes_check[0]['value'] == $option_key) {
@@ -397,12 +401,19 @@ function any_vote_render_block($key) {
         }
         $links[] = $link;
       }
-
       $widget = theme(array('any_vote_options_widget','links'),$links,array('class' => 'any_vote_option_widget list'));
       break;
     default:
       $widget = 'undefined widget';
       break;
+  }
+
+  // if user can't vote on the items, and there is a function to alter display
+  // then call it.
+  if (!user_access('vote on any_vote blocks') &&
+  isset($vote_block_info['no access callback']) &&
+  function_exists($vote_block_info['no access callback'])) {
+    $widget = $vote_block_info['no access callback']($widget);
   }
 
   $return_block['widget'] = $widget;
